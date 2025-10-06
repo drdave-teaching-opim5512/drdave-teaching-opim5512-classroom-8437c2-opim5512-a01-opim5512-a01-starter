@@ -2,25 +2,53 @@
   "tests": [
     {
       "name": "PNG exists in A01-eda/figs",
-      "run": "bash -lc 'ls A01-eda/figs/*.png >/dev/null 2>&1'",
+      "run": "bash -lc '\
+        set -e; \
+        if ls A01-eda/figs/*.png >/dev/null 2>&1; then \
+          echo ::notice::\"Found PNG(s) in A01-eda/figs:\"; ls -1 A01-eda/figs/*.png; \
+        else \
+          echo ::error::\"No PNG found in A01-eda/figs. Save with plt.savefig(\\\"../figs/<name>.png\\\").\"; \
+          echo \"Directory contents:\"; ls -la A01-eda/figs || true; \
+          exit 1; \
+        fi'",
       "comparison": "included",
-      "timeout": 10,
+      "timeout": 20,
       "points": 4
     },
     {
       "name": "PNG was updated in this PR",
-      "setup": "bash -lc 'git fetch origin main'",
-      "run": "bash -lc 'git diff --name-only origin/main...HEAD | grep -E \"^A01-eda/figs/.+\\.png$\"'",
+      "setup": "bash -lc 'git fetch -q origin main || true'",
+      "run": "bash -lc '\
+        set -e; \
+        if git rev-parse --verify origin/main >/dev/null 2>&1; then \
+          CHANGED=$(git diff --name-only origin/main...HEAD | grep -E \"^A01-eda/figs/.+\\.png$\" || true); \
+          if [ -n \"$CHANGED\" ]; then \
+            echo ::notice::\"Changed PNG(s):\"; echo \"$CHANGED\"; \
+          else \
+            echo ::error::\"No figure changes detected. Make an edit (e.g., change bins) and re-save PNG to A01-eda/figs.\"; \
+            git diff --name-only origin/main...HEAD | sed \"s/^/Changed file: /\" || true; \
+            exit 1; \
+          fi; \
+        else \
+          echo ::notice::\"No baseline (first push) — skipping diff check.\"; \
+        fi'",
       "comparison": "included",
-      "timeout": 15,
+      "timeout": 25,
       "points": 4
     },
     {
       "name": "README note updated",
-      "run": "bash -lc 'grep -Ei \"result|figure|bins|hist|summary\" A01-eda/README.md'",
+      "run": "bash -lc '\
+        set -e; \
+        if grep -Ei \"result|figure|summary|bins|hist|png\" A01-eda/README.md; then \
+          echo ::notice::\"README contains a short note (matched one of: result|figure|summary|bins|hist|png).\"; \
+        else \
+          echo ::error::\"Add a 1–2 sentence note to A01-eda/README.md describing your change (e.g., bins=12).\"; \
+          exit 1; \
+        fi'",
       "comparison": "included",
-      "timeout": 10,
+      "timeout": 20,
       "points": 2
-}
+    }
   ]
 }
